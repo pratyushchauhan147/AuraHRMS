@@ -7,12 +7,40 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- CORE ENUMS ---
+
 enum Role {
   ADMIN
   SENIOR_MANAGER
   HR_RECRUITER
   EMPLOYEE
 }
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFERED
+  REJECTED
+  HIRED
+}
+
+// --- COMPANY STRUCTURE ---
+
+model Department {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  employees   Employee[]
+}
+
+// --- USER & EMPLOYEE MODELS ---
 
 model User {
   id        String    @id @default(cuid())
@@ -25,13 +53,114 @@ model User {
 }
 
 model Employee {
-  id        String    @id @default(cuid())
-  firstName String
-  lastName  String
-  position  String
-  hireDate  DateTime  @default(now())
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  userId    String    @unique
-  user      User      @relation(fields: [userId], references: [id])
+  id                      String    @id @default(cuid())
+  firstName               String
+  lastName                String
+  position                String
+  hireDate                DateTime  @default(now())
+  salary                  Float?    // For basic payroll
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  contactNumber           String?
+  address                 String?
+  
+  // Relationships
+  userId                  String        @unique
+  user                    User          @relation(fields: [userId], references: [id])
+  department              Department?   @relation(fields: [departmentId], references: [id])
+  departmentId            String?
+  manager                 Employee?     @relation("ManagerialRelationship", fields: [managerId], references: [id])
+  managerId               String?
+  reports                 Employee[]    @relation("ManagerialRelationship")
+  
+  // Employee-specific features
+  leaveRequests           LeaveRequest[]
+  performanceReviews      PerformanceReview[]
+  goals                   Goal[]
+
+  // Fields for AI Features
+  jobSatisfaction         Int?
+  performanceRating       Int?
+  yearsSinceLastPromotion Int?
+  notes                   String?
+}
+
+// --- LEAVE MANAGEMENT ---
+
+model LeaveRequest {
+  id          String      @id @default(cuid())
+  startDate   DateTime
+  endDate     DateTime
+  reason      String?
+  status      LeaveStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  employeeId  String
+}
+
+// --- RECRUITMENT ---
+
+model JobPosting {
+  id           String        @id @default(cuid())
+  title        String
+  description  String
+  isOpen       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  applications Application[]
+}
+
+model Candidate {
+  id           String        @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String        @unique
+  phone        String?
+  resumeUrl    String?
+  applications Application[]
+}
+
+model Application {
+  id           String            @id @default(cuid())
+  status       ApplicationStatus @default(APPLIED)
+  appliedAt    DateTime          @default(now())
+
+  jobPosting   JobPosting @relation(fields: [jobPostingId], references: [id])
+  jobPostingId String
+  candidate    Candidate  @relation(fields: [candidateId], references: [id])
+  candidateId  String
+  interviews   Interview[]
+}
+
+model Interview {
+  id           String   @id @default(cuid())
+  scheduledFor DateTime
+  feedback     String?
+  
+  application   Application @relation(fields: [applicationId], references: [id])
+  applicationId String
+}
+
+// --- PERFORMANCE MANAGEMENT ---
+
+model PerformanceReview {
+  id                 String   @id @default(cuid())
+  reviewDate         DateTime @default(now())
+  rating             Int      // Score from 1-5
+  strengths          String
+  areasForImprovement String
+
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId String
+}
+
+model Goal {
+  id          String   @id @default(cuid())
+  objective   String
+  keyResults  String   // Storing as a text block for simplicity
+  status      String   @default("On Track") // e.g., On Track, At Risk, Completed
+  quarter     String   // e.g., "Q4 2025"
+
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId String
 }

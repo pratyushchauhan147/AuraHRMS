@@ -1,13 +1,11 @@
-// in src/components/EmployeeTable.jsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-// The problematic prisma import has been removed.
 
 // We define the roles as a simple constant array for the client-side form
 const roles = ["ADMIN", "SENIOR_MANAGER", "HR_RECRUITER", "EMPLOYEE"];
@@ -35,7 +33,10 @@ function CreateEmployeeForm({ onSave, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>First Name</Label><Input name="firstName" required onChange={handleChange} /></div><div className="space-y-2"><Label>Last Name</Label><Input name="lastName" required onChange={handleChange} /></div></div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2"><Label>First Name</Label><Input name="firstName" required onChange={handleChange} /></div>
+        <div className="space-y-2"><Label>Last Name</Label><Input name="lastName" required onChange={handleChange} /></div>
+      </div>
       <div className="space-y-2"><Label>Email</Label><Input name="email" type="email" required onChange={handleChange} /></div>
       <div className="space-y-2"><Label>Password</Label><Input name="password" type="password" required onChange={handleChange} /></div>
       <div className="space-y-2"><Label>Position</Label><Input name="position" required onChange={handleChange} /></div>
@@ -44,14 +45,16 @@ function CreateEmployeeForm({ onSave, onCancel }) {
         <Select onValueChange={handleRoleChange} defaultValue="EMPLOYEE">
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            {/* We now map over our constant 'roles' array */}
             {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2"><Label>Contact Number</Label><Input name="contactNumber" onChange={handleChange} /></div>
       <div className="space-y-2"><Label>Address</Label><Input name="address" onChange={handleChange} /></div>
-      <DialogFooter><Button type="button" variant="outline" onClick={onCancel}>Cancel</Button><Button type="submit">Create Employee</Button></DialogFooter>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button type="submit">Create Employee</Button>
+      </DialogFooter>
     </form>
   );
 }
@@ -63,27 +66,44 @@ function EditEmployeeForm({ employee, allEmployees, onSave, onCancel }) {
   const handleChange = (e) => { const { name, value, type } = e.target; const finalValue = type === 'number' ? parseFloat(value) || null : value; setFormData(prev => ({ ...prev, [name]: finalValue })); };
   const handleManagerChange = (managerId) => { setFormData(prev => ({...prev, managerId: managerId === "none" ? null : managerId })); };
   const handleSubmit = (e) => { e.preventDefault(); onSave(formData); };
+  
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>First Name</Label><Input name="firstName" value={formData.firstName || ''} onChange={handleChange} /></div><div className="space-y-2"><Label>Last Name</Label><Input name="lastName" value={formData.lastName || ''} onChange={handleChange} /></div></div>
-        <div className="space-y-2"><Label>Position</Label><Input name="position" value={formData.position || ''} onChange={handleChange} /></div>
-        <div className="space-y-2"><Label>Salary</Label><Input name="salary" type="number" value={formData.salary || ''} onChange={handleChange} placeholder="e.g., 50000"/></div>
-        <div className="space-y-2"><Label>Reports To (Manager)</Label><Select onValueChange={handleManagerChange} defaultValue={formData.managerId || "none"}><SelectTrigger><SelectValue placeholder="Select a manager" /></SelectTrigger><SelectContent><SelectItem value="none">-- None --</SelectItem>{potentialManagers.map(mgr => (<SelectItem key={mgr.id} value={mgr.id}>{mgr.firstName} {mgr.lastName}</SelectItem>))}</SelectContent></Select></div>
-        <DialogFooter><Button type="button" variant="outline" onClick={onCancel}>Cancel</Button><Button type="submit">Save Changes</Button></DialogFooter>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2"><Label htmlFor="firstName">First Name</Label><Input id="firstName" name="firstName" value={formData.firstName || ''} onChange={handleChange} /></div>
+        <div className="space-y-2"><Label htmlFor="lastName">Last Name</Label><Input id="lastName" name="lastName" value={formData.lastName || ''} onChange={handleChange} /></div>
+      </div>
+      <div className="space-y-2"><Label htmlFor="position">Position</Label><Input id="position" name="position" value={formData.position || ''} onChange={handleChange} /></div>
+      <div className="space-y-2"><Label htmlFor="salary">Salary</Label><Input id="salary" name="salary" type="number" value={formData.salary || ''} onChange={handleChange} placeholder="e.g., 50000"/></div>
+      <div className="space-y-2"><Label htmlFor="managerId">Reports To (Manager)</Label><Select onValueChange={handleManagerChange} defaultValue={formData.managerId || "none"}><SelectTrigger><SelectValue placeholder="Select a manager" /></SelectTrigger><SelectContent><SelectItem value="none">-- None --</SelectItem>{potentialManagers.map(mgr => (<SelectItem key={mgr.id} value={mgr.id}>{mgr.firstName} {mgr.lastName}</SelectItem>))}</SelectContent></Select></div>
+      <DialogFooter><Button type="button" variant="outline" onClick={onCancel}>Cancel</Button><Button type="submit">Save Changes</Button></DialogFooter>
     </form>
   );
 }
 
 // Main Interactive Table Component
-export default function EmployeeTable({ initialEmployees }) {
+export default function EmployeeTable({ initialEmployees, managerIdFilter = null }) {
   const [employees, setEmployees] = useState(initialEmployees || []);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [viewingEmployee, setViewingEmployee] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  // --- Filtered Employee List using useMemo ---
+  const filteredEmployees = useMemo(() => {
+    if (!managerIdFilter) {
+      // Admin View: return all employees
+      return employees;
+    }
+    // Manager View: return only direct reports (excluding the manager themselves)
+    return employees.filter(e => e.managerId === managerIdFilter && e.id !== managerIdFilter);
+  }, [employees, managerIdFilter]);
+  // --------------------------------------------------
+
   const fetchEmployees = async () => {
     try {
-      const res = await fetch('/api/employees');
+      // NOTE: We rely on the initialEmployees prop for the initial data to keep the server component's fetch
+      // but client-side logic often needs a full list for things like the Edit form's manager list.
+      const res = await fetch('/api/employees', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setEmployees(data);
@@ -93,7 +113,7 @@ export default function EmployeeTable({ initialEmployees }) {
   
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, []); // Run once on mount to ensure we have the most current data, especially for edits/creates
 
   const handleSave = async (updatedEmployee) => {
     const trimmedId = updatedEmployee.id.trim();
@@ -103,7 +123,8 @@ export default function EmployeeTable({ initialEmployees }) {
       body: JSON.stringify(updatedEmployee),
     });
     setEditingEmployee(null);
-    fetchEmployees();
+    // Refresh the local state after a successful save
+    fetchEmployees(); 
   };
 
   const handleCreate = async (newEmployeeData) => {
@@ -114,18 +135,28 @@ export default function EmployeeTable({ initialEmployees }) {
     });
     if (res.ok) {
       setIsCreateModalOpen(false);
-      fetchEmployees();
+      // Refresh the local state after a successful create
+      fetchEmployees(); 
     } else {
       const data = await res.json();
-      alert(`Failed to create employee: ${data.error}`);
+      // NOTE: Replace alert with a custom dialog in a production app
+      alert(`Failed to create employee: ${data.error}`); 
     }
   };
 
   return (
     <div>
-      <div className="flex justify-end mb-4">
-        <Button onClick={() => setIsCreateModalOpen(true)}>Add New Employee</Button>
+      <div className="flex justify-between items-center mb-4">
+        {/* Conditional Title based on filter */}
+        <h3 className="text-xl font-semibold text-gray-700">
+            {managerIdFilter ? "My Direct Reports" : "All Employees"}
+        </h3>
+        {/* Only Admin should be able to add new employees */}
+        {!managerIdFilter && (
+            <Button onClick={() => setIsCreateModalOpen(true)}>Add New Employee</Button>
+        )}
       </div>
+      
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <table className="min-w-full leading-normal">
           <thead>
@@ -136,44 +167,87 @@ export default function EmployeeTable({ initialEmployees }) {
             </tr>
           </thead>
           <tbody>
-            {employees.map((employee) => (
-              <tr key={employee.id}>
-                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="font-semibold text-gray-900">{employee.firstName} {employee.lastName}</p><p className="text-gray-500 text-xs">{employee.user?.email || 'N/A'}</p></td>
-                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900">{employee.position}</p></td>
-                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                  <div className="flex space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => setViewingEmployee(employee)}>View</Button>
-                    <Button variant="outline" size="sm" onClick={() => setEditingEmployee(employee)}>Edit</Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {filteredEmployees.length === 0 ? (
+                <tr>
+                    <td colSpan="3" className="px-5 py-5 border-b border-gray-200 bg-white text-center text-sm text-gray-500">
+                        {managerIdFilter ? "You currently have no direct reports." : "No employees found."}
+                    </td>
+                </tr>
+            ) : (
+                filteredEmployees.map((employee) => (
+                    <tr key={employee.id}>
+                        <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                            <p className="font-semibold text-gray-900">{employee.firstName} {employee.lastName}</p>
+                            <p className="text-gray-500 text-xs">{employee.user?.email || 'N/A'}</p>
+                        </td>
+                        <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                            <p className="text-gray-900">{employee.position}</p>
+                        </td>
+                        <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                            <div className="flex space-x-2">
+                                <Button variant="ghost" size="sm" onClick={() => setViewingEmployee(employee)}>View</Button>
+                                {/* Only Admin should be able to edit employee data */}
+                                {!managerIdFilter && (
+                                    <Button variant="outline" size="sm" onClick={() => setEditingEmployee(employee)}>Edit</Button>
+                                )}
+                            </div>
+                        </td>
+                    </tr>
+                ))
+            )}
           </tbody>
         </table>
       </div>
 
+      {/* --- Modals for Create, Edit, and View --- */}
+      
+      {/* Create Modal (Admin Only) */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>Create New Employee</DialogTitle></DialogHeader><CreateEmployeeForm onSave={handleCreate} onCancel={() => setIsCreateModalOpen(false)} /></DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+                <DialogTitle>Create New Employee</DialogTitle>
+            </DialogHeader>
+            <CreateEmployeeForm onSave={handleCreate} onCancel={() => setIsCreateModalOpen(false)} />
+        </DialogContent>
       </Dialog>
       
+      {/* Edit Modal (Admin Only) */}
       <Dialog open={!!editingEmployee} onOpenChange={() => setEditingEmployee(null)}>
-        <DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>Edit Employee</DialogTitle></DialogHeader>{editingEmployee && <EditEmployeeForm employee={editingEmployee} allEmployees={employees} onSave={handleSave} onCancel={() => setEditingEmployee(null)}/>}</DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+                <DialogTitle>Edit Employee</DialogTitle>
+            </DialogHeader>
+            {editingEmployee && 
+                <EditEmployeeForm 
+                    employee={editingEmployee} 
+                    allEmployees={employees} 
+                    onSave={handleSave} 
+                    onCancel={() => setEditingEmployee(null)}
+                />
+            }
+        </DialogContent>
       </Dialog>
   
+      {/* View Modal (All Roles) */}
       <Dialog open={!!viewingEmployee} onOpenChange={() => setViewingEmployee(null)}>
-        <DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>{viewingEmployee?.firstName} {viewingEmployee?.lastName}</DialogTitle><DialogDescription>{viewingEmployee?.position}</DialogDescription></DialogHeader>
-        <div className="grid gap-4 py-4 text-sm">
-          <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Email</Label><span>{viewingEmployee?.user?.email}</span></div>
-          <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Hire Date</Label><span>{viewingEmployee ? new Date(viewingEmployee.hireDate).toLocaleDateString() : ''}</span></div>
-          <div className="border-t my-2"></div>
-          <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500 font-semibold">Manager</Label><span className="font-medium">{viewingEmployee?.manager ? `${viewingEmployee.manager.firstName} ${viewingEmployee.manager.lastName}` : "N/A"}</span></div>
-          <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Salary</Label><span>{viewingEmployee?.salary ? `$${viewingEmployee.salary.toLocaleString()}` : "Not set"}</span></div>
-          <div className="border-t my-2"></div>
-          <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Job Satisfaction</Label><span>{viewingEmployee?.jobSatisfaction ? `${viewingEmployee.jobSatisfaction} / 5` : "Not set"}</span></div>
-          <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Performance Rating</Label><span>{viewingEmployee?.performanceRating ? `${viewingEmployee.performanceRating} / 5` : "Not set"}</span></div>
-          <div className="grid grid-cols-[150px_1fr] items-start gap-4"><Label className="text-right text-gray-500 mt-1">Notes</Label><p className="border bg-gray-50 rounded-md p-2 text-gray-700 h-24 overflow-y-auto">{viewingEmployee?.notes || "No notes available."}</p></div>
-        </div>
-        <DialogFooter><Button onClick={() => setViewingEmployee(null)}>Close</Button></DialogFooter></DialogContent>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{viewingEmployee?.firstName} {viewingEmployee?.lastName}</DialogTitle>
+            <DialogDescription>{viewingEmployee?.position}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4 text-sm">
+            <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Email</Label><span>{viewingEmployee?.user?.email}</span></div>
+            <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Hire Date</Label><span>{viewingEmployee ? new Date(viewingEmployee.hireDate).toLocaleDateString() : ''}</span></div>
+            <div className="border-t my-2"></div>
+            <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500 font-semibold">Manager</Label><span className="font-medium">{viewingEmployee?.manager ? `${viewingEmployee.manager.firstName} ${viewingEmployee.manager.lastName}` : "N/A"}</span></div>
+            <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Salary</Label><span>{viewingEmployee?.salary ? `$${viewingEmployee.salary.toLocaleString()}` : "Not set"}</span></div>
+            <div className="border-t my-2"></div>
+            <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Job Satisfaction</Label><span>{viewingEmployee?.jobSatisfaction ? `${viewingEmployee.jobSatisfaction} / 5` : "Not set"}</span></div>
+            <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Performance Rating</Label><span>{viewingEmployee?.performanceRating ? `${viewingEmployee.performanceRating} / 5` : "Not set"}</span></div>
+            <div className="grid grid-cols-[150px_1fr] items-start gap-4"><Label className="text-right text-gray-500 mt-1">Notes</Label><p className="border bg-gray-50 rounded-md p-2 text-gray-700 h-24 overflow-y-auto">{viewingEmployee?.notes || "No notes available."}</p></div>
+          </div>
+          <DialogFooter><Button onClick={() => setViewingEmployee(null)}>Close</Button></DialogFooter>
+        </DialogContent>
       </Dialog>
     </div>
   );

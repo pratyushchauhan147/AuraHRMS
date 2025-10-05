@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
 }
 
 // --- CORE ENUMS ---
@@ -31,11 +31,26 @@ enum ApplicationStatus {
   HIRED
 }
 
+// --- EMPLOYEE RELATIONS ENUMS ---
+
+enum ReportType {
+  COMPLAINT
+  POSITIVE_REVIEW
+  SUGGESTION
+}
+
+enum ReportStatus {
+  NEW
+  IN_REVIEW
+  RESOLVED
+  CLOSED
+}
+
 // --- COMPANY STRUCTURE ---
 
 model Department {
-  id          String     @id @default(cuid())
-  name        String     @unique
+  id          String    @id @default(cuid())
+  name        String    @unique
   description String?
   employees   Employee[]
 }
@@ -53,36 +68,61 @@ model User {
 }
 
 model Employee {
-  id                      String    @id @default(cuid())
-  firstName               String
-  lastName                String
-  position                String
-  hireDate                DateTime  @default(now())
-  salary                  Float?    // For basic payroll
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-  contactNumber           String?
-  address                 String?
+  id                       String    @id @default(cuid())
+  firstName                String
+  lastName                 String
+  position                 String
+  hireDate                 DateTime  @default(now())
+  salary                   Float?    // For basic payroll
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  contactNumber            String?
+  address                  String?
   
   // Relationships
-  userId                  String        @unique
-  user                    User          @relation(fields: [userId], references: [id])
-  department              Department?   @relation(fields: [departmentId], references: [id])
-  departmentId            String?
-  manager                 Employee?     @relation("ManagerialRelationship", fields: [managerId], references: [id])
-  managerId               String?
-  reports                 Employee[]    @relation("ManagerialRelationship")
+  userId                   String        @unique
+  user                     User          @relation(fields: [userId], references: [id])
+  department               Department?   @relation(fields: [departmentId], references: [id])
+  departmentId             String?
+  manager                  Employee?     @relation("ManagerialRelationship", fields: [managerId], references: [id])
+  managerId                String?
+  reports                  Employee[]    @relation("ManagerialRelationship")
   
   // Employee-specific features
-  leaveRequests           LeaveRequest[]
-  performanceReviews      PerformanceReview[]
-  goals                   Goal[]
+  leaveRequests            LeaveRequest[]
+  performanceReviews       PerformanceReview[]
+  goals                    Goal[]
 
   // Fields for AI Features
-  jobSatisfaction         Int?
-  performanceRating       Int?
-  yearsSinceLastPromotion Int?
-  notes                   String?
+  jobSatisfaction          Int?
+  performanceRating        Int?
+  yearsSinceLastPromotion  Int?
+  notes                    String?
+
+  // EMPLOYEE RELATIONS: Reports made ABOUT this employee
+  targetedReports          EmployeeReport[] @relation("TargetedReports")
+  // EMPLOYEE RELATIONS: Reports SUBMITTED by this employee
+  submittedReports         EmployeeReport[] @relation("SubmittedReports")
+}
+
+// --- EMPLOYEE RELATIONS ---
+
+model EmployeeReport {
+  id               String       @id @default(cuid())
+  type             ReportType
+  status           ReportStatus @default(NEW)
+  title            String
+  details          String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // The employee the report is about (MANDATORY)
+  targetEmployee   Employee     @relation("TargetedReports", fields: [targetEmployeeId], references: [id])
+  targetEmployeeId String
+
+  // The employee who submitted the report (OPTIONAL, for potential anonymity)
+  reporter         Employee?    @relation("SubmittedReports", fields: [reporterId], references: [id])
+  reporterId       String?
 }
 
 // --- LEAVE MANAGEMENT ---
@@ -102,40 +142,40 @@ model LeaveRequest {
 // --- RECRUITMENT ---
 
 model JobPosting {
-  id           String        @id @default(cuid())
+  id           String          @id @default(cuid())
   title        String
   description  String
-  isOpen       Boolean       @default(true)
-  createdAt    DateTime      @default(now())
+  isOpen       Boolean         @default(true)
+  createdAt    DateTime        @default(now())
   applications Application[]
 }
 
 model Candidate {
-  id           String        @id @default(cuid())
+  id           String          @id @default(cuid())
   firstName    String
   lastName     String
-  email        String        @unique
+  email        String          @unique
   phone        String?
   resumeUrl    String?
   applications Application[]
 }
 
 model Application {
-  id           String            @id @default(cuid())
-  status       ApplicationStatus @default(APPLIED)
-  appliedAt    DateTime          @default(now())
+  id            String            @id @default(cuid())
+  status        ApplicationStatus @default(APPLIED)
+  appliedAt     DateTime          @default(now())
 
-  jobPosting   JobPosting @relation(fields: [jobPostingId], references: [id])
-  jobPostingId String
-  candidate    Candidate  @relation(fields: [candidateId], references: [id])
-  candidateId  String
-  interviews   Interview[]
+  jobPosting    JobPosting @relation(fields: [jobPostingId], references: [id])
+  jobPostingId  String
+  candidate     Candidate  @relation(fields: [candidateId], references: [id])
+  candidateId   String
+  interviews    Interview[]
 }
 
 model Interview {
-  id           String   @id @default(cuid())
-  scheduledFor DateTime
-  feedback     String?
+  id            String    @id @default(cuid())
+  scheduledFor  DateTime
+  feedback      String?
   
   application   Application @relation(fields: [applicationId], references: [id])
   applicationId String
@@ -144,23 +184,23 @@ model Interview {
 // --- PERFORMANCE MANAGEMENT ---
 
 model PerformanceReview {
-  id                 String   @id @default(cuid())
-  reviewDate         DateTime @default(now())
-  rating             Int      // Score from 1-5
-  strengths          String
-  areasForImprovement String
+  id                    String    @id @default(cuid())
+  reviewDate            DateTime  @default(now())
+  rating                Int       // Score from 1-5
+  strengths             String
+  areasForImprovement   String
 
-  employee   Employee @relation(fields: [employeeId], references: [id])
+  employee    Employee @relation(fields: [employeeId], references: [id])
   employeeId String
 }
 
 model Goal {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   objective   String
-  keyResults  String   // Storing as a text block for simplicity
-  status      String   @default("On Track") // e.g., On Track, At Risk, Completed
-  quarter     String   // e.g., "Q4 2025"
+  keyResults  String    // Storing as a text block for simplicity
+  status      String    @default("On Track") // e.g., On Track, At Risk, Completed
+  quarter     String    // e.g., "Q4 2025"
 
-  employee   Employee @relation(fields: [employeeId], references: [id])
+  employee    Employee @relation(fields: [employeeId], references: [id])
   employeeId String
 }

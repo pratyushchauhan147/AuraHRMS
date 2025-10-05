@@ -5,6 +5,7 @@ import * as jose from "jose";
 import AdminDashboard from "@/components/Dashboards/AdminDashboard";
 import HRDashboard from "@/components/Dashboards/HRDashboard";
 import EmployeeDashboard from "@/components/Dashboards/EmployeeDashboard";
+import ManagerDashboard from "@/components/Dashboards/ManagerDashboard";
 async function getUserSession() {
   const token = cookies().get("session-token")?.value;
   if (!token) return null;
@@ -34,7 +35,7 @@ export default async function DashboardPage() {
       case "ADMIN":
         return <AdminDashboard />;
       case "SENIOR_MANAGER":
-        return <div>Senior Manager Dashboard Content</div>;
+        return <ManagerDashboard user={user} />;
       case "HR_RECRUITER":
         return <HRDashboard />;
       case "EMPLOYEE":

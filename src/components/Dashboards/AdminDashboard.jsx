@@ -1,8 +1,10 @@
 // in src/components/AdminDashboard.jsx
 import prisma from "@/lib/prisma";
+
 import ResumeScreener from "../ResumeScreener";
 import CopilotWidget from "../CopilotWidget"; // Corrected the import name
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import LeaveApprovalDashboard from "../LeaveApprovalDashboard"; 
 import EmployeeTable from "../EmployeeTable"; 
 import AttendanceTable from "../Attendance/AttendanceTable";
@@ -71,11 +73,20 @@ export default async function AdminDashboard() {
            
         </TabsContent>
 
-        <TabsContent value="attendance" className="mt-4">
-         <div className="h-fit"> <AttendanceTable/>
-         </div>
-           
-        </TabsContent>
+      <TabsContent value="attendance" className="mt-4">
+  <div className="flex justify-end mb-4">
+   
+    <a
+      href="/attendance"
+     
+    >
+       <Button >Go To Attendance</Button>
+    </a>
+  </div>
+  <div className="h-fit">
+    <AttendanceTable />
+  </div>
+</TabsContent>
 
         
   

@@ -7,14 +7,23 @@ import { Role } from "@prisma/client";
  * GET /api/attendance
  * Fetch all attendance records (HR/Admin only)
  */
-export async function GET() {
+export async function GET(request) {
   const user = await getUserSession();
   if (!user || (user.role !== Role.ADMIN && user.role !== Role.HR_RECRUITER)) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
   try {
+    // Get employeeId from query params (optional)
+    const url = new URL(request.url);
+    const employeeId = url.searchParams.get("employeeId");
+
+    const whereClause = employeeId
+      ? { employeeId: employeeId }  // fetch only for this employee
+      : {};                                 // fetch all
+
     const records = await prisma.attendance.findMany({
+      where: whereClause,
       orderBy: { date: "desc" },
       include: {
         employee: { select: { firstName: true, lastName: true, position: true } },
@@ -27,7 +36,6 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to fetch attendance" }, { status: 500 });
   }
 }
-
 /**
  * POST /api/attendance
  * Handles both Clock-In and Clock-Out logic for logged-in employees

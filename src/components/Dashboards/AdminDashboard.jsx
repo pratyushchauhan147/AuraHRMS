@@ -4,7 +4,8 @@ import ResumeScreener from "../ResumeScreener";
 import CopilotWidget from "../CopilotWidget"; // Corrected the import name
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LeaveApprovalDashboard from "../LeaveApprovalDashboard"; 
-import EmployeeTable from "../EmployeeTable"; // <-- Import our new Client Component
+import EmployeeTable from "../EmployeeTable"; 
+import AttendanceTable from "../Attendance/AttendanceTable";
 import Reports from "../Reports";
 export default async function AdminDashboard() {
   // 1. Fetch the initial data on the server
@@ -44,6 +45,7 @@ export default async function AdminDashboard() {
           <TabsTrigger value="screener">AI Resume Screener</TabsTrigger>
           <TabsTrigger value="approvals">Leave Approvals</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger> 
+          <TabsTrigger value="attendance">Attendance</TabsTrigger> 
           </TabsList>
 
           <TabsContent value="approvals" className="mt-4">
@@ -65,6 +67,12 @@ export default async function AdminDashboard() {
         </TabsContent>
         <TabsContent value="reports" className="mt-4">
          <div className="h-fit"> <Reports/>
+         </div>
+           
+        </TabsContent>
+
+        <TabsContent value="attendance" className="mt-4">
+         <div className="h-fit"> <AttendanceTable/>
          </div>
            
         </TabsContent>

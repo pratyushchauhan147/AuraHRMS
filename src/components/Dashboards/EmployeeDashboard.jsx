@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import RequestLeaveForm from "../RequestLeaveForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EmployeeTable from "../EmployeeTable"; // <-- Import our new Client Component
-
+import ClockInOutButton from "../Attendance/ClockInOutButton";
 // Helper to apply colors to the status badges
 const getStatusVariant = (status) => {
   switch (status) {
@@ -50,6 +50,7 @@ export default async function EmployeeDashboard({ user }) {
 
         {/* Profile Tab */}
         <TabsContent value="profile" className="mt-4">
+         
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h3 className="text-xl font-semibold mb-4 border-b pb-2">My Profile</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -113,6 +114,7 @@ export default async function EmployeeDashboard({ user }) {
                     
                 </TabsContent>
       </Tabs>
+        
     </div>
   );
 }

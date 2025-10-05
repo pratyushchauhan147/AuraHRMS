@@ -92,6 +92,7 @@ model Employee {
   leaveRequests            LeaveRequest[]
   performanceReviews       PerformanceReview[]
   goals                    Goal[]
+  attendanceRecords Attendance[]
 
   // Fields for AI Features
   jobSatisfaction          Int?
@@ -203,4 +204,17 @@ model Goal {
 
   employee    Employee @relation(fields: [employeeId], references: [id])
   employeeId String
+}
+
+model Attendance {
+  id           String    @id @default(cuid())
+  date         DateTime  // The day of the attendance
+  employee     Employee  @relation(fields: [employeeId], references: [id])
+  employeeId   String
+  sessions     Json      // Array of clock-in/out sessions [{ clockIn: "...", clockOut: "..." }]
+  totalHours   Float?    // Total hours worked
+  overtime     Float?    // Overtime hours
+  status       String    @default("PRESENT") // PRESENT, ABSENT, ON_LEAVE, HOLIDAY
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }

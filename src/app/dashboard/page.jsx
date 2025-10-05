@@ -1,11 +1,14 @@
-// in src/app/dashboard/page.jsx
+// src/app/dashboard/page.jsx
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import * as jose from "jose";
+
 import AdminDashboard from "@/components/Dashboards/AdminDashboard";
 import HRDashboard from "@/components/Dashboards/HRDashboard";
 import EmployeeDashboard from "@/components/Dashboards/EmployeeDashboard";
 import ManagerDashboard from "@/components/Dashboards/ManagerDashboard";
+import ClockInOutButton from "@/components/Attendance/ClockInOutButton";
+
 async function getUserSession() {
   const token = cookies().get("session-token")?.value;
   if (!token) return null;
@@ -13,23 +16,17 @@ async function getUserSession() {
   try {
     const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
     const { payload } = await jose.jwtVerify(token, secret);
-    return payload; // Returns { id, email, role, iat, exp }
+    return payload; // { id, email, role, iat, exp }
   } catch (error) {
     return null;
   }
 }
 
-// This is the main Dashboard page component
 export default async function DashboardPage() {
   const user = await getUserSession();
 
-  // This is a second layer of protection. 
-  // If for some reason the middleware fails or is disabled, this will redirect.
-  if (!user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
 
-  // A simple component to render content based on role
   const DashboardContent = () => {
     switch (user.role) {
       case "ADMIN":
@@ -46,19 +43,33 @@ export default async function DashboardPage() {
   };
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
-      <p className="mb-2">
-        Welcome, <span className="font-semibold">{user.email}</span>!
-      </p>
-      <p className="mb-6">
-        Your role is: <span className="px-2 py-1 text-sm font-medium bg-gray-200 text-gray-800 rounded-md">{user.role}</span>
-      </p>
-      <div className="border-t pt-6">
-        <h2 className="text-xl font-semibold mb-4">Your View:</h2>
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <DashboardContent />
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+      {/* Header with ClockInOutButton on the right */}
+      <header className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p>
+            Welcome, <span className="font-semibold">{user.email}</span>!
+          </p>
+          <p>
+            Role:{" "}
+            <span className="px-2 py-1 text-sm font-medium bg-gray-200 text-gray-800 rounded-md">
+              {user.role}
+            </span>
+          </p>
         </div>
+
+        {/* Show ClockInOutButton only for employees */}
+        {user.role !== "ADMIN" && (
+          <div className="md:ml-6">
+            <ClockInOutButton userId={user.id} />
+          </div>
+        )}
+      </header>
+
+      {/* Main dashboard content */}
+      <div className="bg-white p-6 rounded-lg shadow-sm">
+        <DashboardContent />
       </div>
     </div>
   );

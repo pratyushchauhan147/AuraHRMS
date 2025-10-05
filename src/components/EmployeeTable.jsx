@@ -1,162 +1,95 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MoreVertical } from "lucide-react";
 
-// We define the roles as a simple constant array for the client-side form
 const roles = ["ADMIN", "SENIOR_MANAGER", "HR_RECRUITER", "EMPLOYEE"];
 
-// Sub-component for the Create Employee Form
-function CreateEmployeeForm({ onSave, onCancel }) {
-  const [formData, setFormData] = useState({
-    firstName: '', lastName: '', email: '', password: '', 
-    position: '', role: 'EMPLOYEE', contactNumber: '', address: ''
-  });
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleRoleChange = (role) => {
-    setFormData(prev => ({ ...prev, role }));
-  }
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2"><Label>First Name</Label><Input name="firstName" required onChange={handleChange} /></div>
-        <div className="space-y-2"><Label>Last Name</Label><Input name="lastName" required onChange={handleChange} /></div>
-      </div>
-      <div className="space-y-2"><Label>Email</Label><Input name="email" type="email" required onChange={handleChange} /></div>
-      <div className="space-y-2"><Label>Password</Label><Input name="password" type="password" required onChange={handleChange} /></div>
-      <div className="space-y-2"><Label>Position</Label><Input name="position" required onChange={handleChange} /></div>
-      <div className="space-y-2">
-        <Label>Role</Label>
-        <Select onValueChange={handleRoleChange} defaultValue="EMPLOYEE">
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2"><Label>Contact Number</Label><Input name="contactNumber" onChange={handleChange} /></div>
-      <div className="space-y-2"><Label>Address</Label><Input name="address" onChange={handleChange} /></div>
-      <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button type="submit">Create Employee</Button>
-      </DialogFooter>
-    </form>
-  );
-}
-
-// Sub-component for the Edit Employee Form
-function EditEmployeeForm({ employee, allEmployees, onSave, onCancel }) {
-  const [formData, setFormData] = useState(employee);
-  const potentialManagers = allEmployees.filter(e => e.id !== employee.id);
-  const handleChange = (e) => { const { name, value, type } = e.target; const finalValue = type === 'number' ? parseFloat(value) || null : value; setFormData(prev => ({ ...prev, [name]: finalValue })); };
-  const handleManagerChange = (managerId) => { setFormData(prev => ({...prev, managerId: managerId === "none" ? null : managerId })); };
-  const handleSubmit = (e) => { e.preventDefault(); onSave(formData); };
-  
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2"><Label htmlFor="firstName">First Name</Label><Input id="firstName" name="firstName" value={formData.firstName || ''} onChange={handleChange} /></div>
-        <div className="space-y-2"><Label htmlFor="lastName">Last Name</Label><Input id="lastName" name="lastName" value={formData.lastName || ''} onChange={handleChange} /></div>
-      </div>
-      <div className="space-y-2"><Label htmlFor="position">Position</Label><Input id="position" name="position" value={formData.position || ''} onChange={handleChange} /></div>
-      <div className="space-y-2"><Label htmlFor="salary">Salary</Label><Input id="salary" name="salary" type="number" value={formData.salary || ''} onChange={handleChange} placeholder="e.g., 50000"/></div>
-      <div className="space-y-2"><Label htmlFor="managerId">Reports To (Manager)</Label><Select onValueChange={handleManagerChange} defaultValue={formData.managerId || "none"}><SelectTrigger><SelectValue placeholder="Select a manager" /></SelectTrigger><SelectContent><SelectItem value="none">-- None --</SelectItem>{potentialManagers.map(mgr => (<SelectItem key={mgr.id} value={mgr.id}>{mgr.firstName} {mgr.lastName}</SelectItem>))}</SelectContent></Select></div>
-      <DialogFooter><Button type="button" variant="outline" onClick={onCancel}>Cancel</Button><Button type="submit">Save Changes</Button></DialogFooter>
-    </form>
-  );
-}
-
-// Main Interactive Table Component
 export default function EmployeeTable({ initialEmployees, managerIdFilter = null }) {
   const [employees, setEmployees] = useState(initialEmployees || []);
-  const [editingEmployee, setEditingEmployee] = useState(null);
-  const [viewingEmployee, setViewingEmployee] = useState(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [modalMode, setModalMode] = useState(null); // "create" | "edit" | "view"
+  
+  // Fetch employees on mount
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const res = await fetch('/api/employees', { cache: 'no-store' });
+        if (res.ok) setEmployees(await res.json());
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchEmployees();
+  }, []);
 
-  // --- Filtered Employee List using useMemo ---
+  // Filter employees
   const filteredEmployees = useMemo(() => {
-    if (!managerIdFilter) {
-      // Admin View: return all employees
-      return employees;
-    }
-    // Manager View: return only direct reports (excluding the manager themselves)
+    if (!managerIdFilter) return employees;
     return employees.filter(e => e.managerId === managerIdFilter && e.id !== managerIdFilter);
   }, [employees, managerIdFilter]);
-  // --------------------------------------------------
 
-  const fetchEmployees = async () => {
+  // Create or Update Employee (updates state directly)
+  const handleSave = useCallback(async (employeeData) => {
     try {
-      // NOTE: We rely on the initialEmployees prop for the initial data to keep the server component's fetch
-      // but client-side logic often needs a full list for things like the Edit form's manager list.
-      const res = await fetch('/api/employees', { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        setEmployees(data);
-      } else { console.error("Failed to fetch employees list."); }
-    } catch (error) { console.error("Error fetching employees:", error); }
-  };
-  
-  useEffect(() => {
-    fetchEmployees();
-  }, []); // Run once on mount to ensure we have the most current data, especially for edits/creates
-
-  const handleSave = async (updatedEmployee) => {
-    const trimmedId = updatedEmployee.id.trim();
-    await fetch(`/api/employees/${trimmedId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedEmployee),
-    });
-    setEditingEmployee(null);
-    // Refresh the local state after a successful save
-    fetchEmployees(); 
-  };
-
-  const handleCreate = async (newEmployeeData) => {
-    const res = await fetch('/api/employees', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newEmployeeData),
-    });
-    if (res.ok) {
-      setIsCreateModalOpen(false);
-      // Refresh the local state after a successful create
-      fetchEmployees(); 
-    } else {
-      const data = await res.json();
-      // NOTE: Replace alert with a custom dialog in a production app
-      alert(`Failed to create employee: ${data.error}`); 
+      if (modalMode === "create") {
+        const res = await fetch('/api/employees', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(employeeData),
+        });
+        if (!res.ok) throw new Error("Failed to create employee");
+        const newEmployee = await res.json();
+        setEmployees(prev => [...prev, newEmployee]);
+      } else if (modalMode === "edit") {
+        const res = await fetch(`/api/employees/${employeeData.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(employeeData),
+        });
+        if (!res.ok) throw new Error("Failed to update employee");
+        setEmployees(prev => prev.map(e => e.id === employeeData.id ? employeeData : e));
+      }
+      setSelectedEmployee(null);
+      setModalMode(null);
+    } catch (err) {
+      alert(err.message);
     }
-  };
+  }, [modalMode]);
+
+  // Close modal
+  const handleCloseModal = useCallback(() => {
+    setSelectedEmployee(null);
+    setModalMode(null);
+  }, []);
 
   return (
     <div>
+      {/* Header */}
       <div className="flex justify-between items-center mb-4">
-        {/* Conditional Title based on filter */}
         <h3 className="text-xl font-semibold text-gray-700">
-            {managerIdFilter ? "My Direct Reports" : "All Employees"}
+          {managerIdFilter ? "My Direct Reports" : "All Employees"}
         </h3>
-        {/* Only Admin should be able to add new employees */}
-        {!managerIdFilter && (
-            <Button onClick={() => setIsCreateModalOpen(true)}>Add New Employee</Button>
-        )}
+        <div className="flex items-center gap-2">
+          {!managerIdFilter && <Button onClick={() => setModalMode("create")}>Add Employee</Button>}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm"><MoreVertical className="w-4 h-4" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild><a href="/employee/report">Employee Reports/Review</a></DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
-      
+
+      {/* Table */}
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <table className="min-w-full leading-normal">
           <thead>
@@ -168,87 +101,65 @@ export default function EmployeeTable({ initialEmployees, managerIdFilter = null
           </thead>
           <tbody>
             {filteredEmployees.length === 0 ? (
-                <tr>
-                    <td colSpan="3" className="px-5 py-5 border-b border-gray-200 bg-white text-center text-sm text-gray-500">
-                        {managerIdFilter ? "You currently have no direct reports." : "No employees found."}
-                    </td>
-                </tr>
-            ) : (
-                filteredEmployees.map((employee) => (
-                    <tr key={employee.id}>
-                        <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                            <p className="font-semibold text-gray-900">{employee.firstName} {employee.lastName}</p>
-                            <p className="text-gray-500 text-xs">{employee.user?.email || 'N/A'}</p>
-                        </td>
-                        <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                            <p className="text-gray-900">{employee.position}</p>
-                        </td>
-                        <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                            <div className="flex space-x-2">
-                                <Button variant="ghost" size="sm" onClick={() => setViewingEmployee(employee)}>View</Button>
-                                {/* Only Admin should be able to edit employee data */}
-                                {!managerIdFilter && (
-                                    <Button variant="outline" size="sm" onClick={() => setEditingEmployee(employee)}>Edit</Button>
-                                )}
-                            </div>
-                        </td>
-                    </tr>
-                ))
-            )}
+              <tr>
+                <td colSpan="3" className="px-5 py-5 border-b border-gray-200 text-center text-sm text-gray-500">
+                  {managerIdFilter ? "No direct reports" : "No employees found"}
+                </td>
+              </tr>
+            ) : filteredEmployees.map(emp => (
+              <tr key={emp.id}>
+                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                  <p className="font-semibold text-gray-900">{emp.firstName} {emp.lastName}</p>
+                  <p className="text-gray-500 text-xs">{emp.user?.email || 'N/A'}</p>
+                </td>
+                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{emp.position}</td>
+                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm flex space-x-2">
+                  <Button variant="ghost" size="sm" onClick={() => { setSelectedEmployee(emp); setModalMode("view"); }}>View</Button>
+                  {!managerIdFilter && <Button variant="outline" size="sm" onClick={() => { setSelectedEmployee(emp); setModalMode("edit"); }}>Edit</Button>}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
-      {/* --- Modals for Create, Edit, and View --- */}
-      
-      {/* Create Modal (Admin Only) */}
-      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+      {/* Modals */}
+      {modalMode === "create" && (
+        <Dialog open={true} onOpenChange={handleCloseModal}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader><DialogTitle>Create New Employee</DialogTitle></DialogHeader>
+            <CreateEmployeeForm onSave={handleSave} onCancel={handleCloseModal} />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {modalMode === "edit" && selectedEmployee && (
+        <Dialog open={true} onOpenChange={handleCloseModal}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader><DialogTitle>Edit Employee</DialogTitle></DialogHeader>
+            <EditEmployeeForm employee={selectedEmployee} allEmployees={employees} onSave={handleSave} onCancel={handleCloseModal} />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {modalMode === "view" && selectedEmployee && (
+        <Dialog open={true} onOpenChange={handleCloseModal}>
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-                <DialogTitle>Create New Employee</DialogTitle>
+              <DialogTitle>{selectedEmployee.firstName} {selectedEmployee.lastName}</DialogTitle>
+              <DialogDescription>{selectedEmployee.position}</DialogDescription>
             </DialogHeader>
-            <CreateEmployeeForm onSave={handleCreate} onCancel={() => setIsCreateModalOpen(false)} />
-        </DialogContent>
-      </Dialog>
-      
-      {/* Edit Modal (Admin Only) */}
-      <Dialog open={!!editingEmployee} onOpenChange={() => setEditingEmployee(null)}>
-        <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-                <DialogTitle>Edit Employee</DialogTitle>
-            </DialogHeader>
-            {editingEmployee && 
-                <EditEmployeeForm 
-                    employee={editingEmployee} 
-                    allEmployees={employees} 
-                    onSave={handleSave} 
-                    onCancel={() => setEditingEmployee(null)}
-                />
-            }
-        </DialogContent>
-      </Dialog>
-  
-      {/* View Modal (All Roles) */}
-      <Dialog open={!!viewingEmployee} onOpenChange={() => setViewingEmployee(null)}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{viewingEmployee?.firstName} {viewingEmployee?.lastName}</DialogTitle>
-            <DialogDescription>{viewingEmployee?.position}</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4 text-sm">
-            <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Email</Label><span>{viewingEmployee?.user?.email}</span></div>
-            <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Hire Date</Label><span>{viewingEmployee ? new Date(viewingEmployee.hireDate).toLocaleDateString() : ''}</span></div>
-            <div className="border-t my-2"></div>
-            <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500 font-semibold">Manager</Label><span className="font-medium">{viewingEmployee?.manager ? `${viewingEmployee.manager.firstName} ${viewingEmployee.manager.lastName}` : "N/A"}</span></div>
-            <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Salary</Label><span>{viewingEmployee?.salary ? `$${viewingEmployee.salary.toLocaleString()}` : "Not set"}</span></div>
-            <div className="border-t my-2"></div>
-            <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Job Satisfaction</Label><span>{viewingEmployee?.jobSatisfaction ? `${viewingEmployee.jobSatisfaction} / 5` : "Not set"}</span></div>
-            <div className="grid grid-cols-[150px_1fr] items-center gap-4"><Label className="text-right text-gray-500">Performance Rating</Label><span>{viewingEmployee?.performanceRating ? `${viewingEmployee.performanceRating} / 5` : "Not set"}</span></div>
-            <div className="grid grid-cols-[150px_1fr] items-start gap-4"><Label className="text-right text-gray-500 mt-1">Notes</Label><p className="border bg-gray-50 rounded-md p-2 text-gray-700 h-24 overflow-y-auto">{viewingEmployee?.notes || "No notes available."}</p></div>
-          </div>
-          <DialogFooter><Button onClick={() => setViewingEmployee(null)}>Close</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <div className="grid gap-4 py-4 text-sm">
+              <div className="grid grid-cols-[150px_1fr] gap-4"><Label>Email</Label><span>{selectedEmployee.user?.email}</span></div>
+              <div className="grid grid-cols-[150px_1fr] gap-4"><Label>Hire Date</Label><span>{selectedEmployee.hireDate ? new Date(selectedEmployee.hireDate).toLocaleDateString() : ''}</span></div>
+              <div className="grid grid-cols-[150px_1fr] gap-4"><Label>Manager</Label><span>{selectedEmployee.manager ? `${selectedEmployee.manager.firstName} ${selectedEmployee.manager.lastName}` : 'N/A'}</span></div>
+              <div className="grid grid-cols-[150px_1fr] gap-4"><Label>Salary</Label><span>{selectedEmployee.salary ? `$${selectedEmployee.salary.toLocaleString()}` : "Not set"}</span></div>
+              <div className="grid grid-cols-[150px_1fr] gap-4"><Label>Notes</Label><p className="border bg-gray-50 rounded-md p-2 h-24 overflow-y-auto">{selectedEmployee.notes || "No notes available."}</p></div>
+            </div>
+            <DialogFooter><Button onClick={handleCloseModal}>Close</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

@@ -1,3 +1,6 @@
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+
 export default function EmployeeHistoryTable({ records }) {
   if (!records || !Array.isArray(records)) return <p>No records</p>;
 

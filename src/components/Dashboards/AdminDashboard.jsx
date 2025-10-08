@@ -9,6 +9,7 @@ import LeaveApprovalDashboard from "../LeaveApprovalDashboard";
 import EmployeeTable from "../EmployeeTable"; 
 import AttendanceTable from "../Attendance/AttendanceTable";
 import Reports from "../Reports";
+import CleanupButton from "../admin/CleanupButton";
 export default async function AdminDashboard() {
   // 1. Fetch the initial data on the server
   const employees = await prisma.employee.findMany({
@@ -48,6 +49,7 @@ export default async function AdminDashboard() {
           <TabsTrigger value="approvals">Leave Approvals</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger> 
           <TabsTrigger value="attendance">Attendance</TabsTrigger> 
+           <TabsTrigger value="tools">Admin Tools</TabsTrigger>
           </TabsList>
 
           <TabsContent value="approvals" className="mt-4">
@@ -87,6 +89,14 @@ export default async function AdminDashboard() {
     <AttendanceTable />
   </div>
 </TabsContent>
+
+ <TabsContent value="tools" className="mt-4">
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-xl font-semibold mb-4">Data Management</h3>
+            <p className="text-sm text-gray-500 mb-4">Run periodic cleanup jobs to maintain database health and data privacy.</p>
+            <CleanupButton />
+          </div>
+        </TabsContent>
 
         
   

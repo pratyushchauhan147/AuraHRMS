@@ -27,5 +27,5 @@ export async function middleware(request) {
 
 // This config object specifies which routes the middleware should run on
 export const config = {
-  matcher: "/dashboard/:path*", // Protect all routes under /dashboard
+ matcher: ["/dashboard/:path*", "/recruitment/:path*"], // Protect all routes under /dashboard
 };

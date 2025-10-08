@@ -25,6 +25,7 @@ export async function POST(request) {
   try {
     const body = await request.json();
     // 1. Add the new fields to the destructuring
+    console.log("Data received on backend for CREATE:", body);
     const { firstName, lastName, email, password, position, role, contactNumber, address } = body;
 
     if (!firstName || !lastName || !email || !password || !position || !role) {

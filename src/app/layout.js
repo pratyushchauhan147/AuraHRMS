@@ -15,10 +15,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>
+     
           <Navbar /> {/* <-- ADD THE NAVBAR */}
           <main className="p-8">{children}</main> {/* Optional: Wrap children in main for padding */}
-        </AuthProvider>
+      
       </body>
     </html>
   );

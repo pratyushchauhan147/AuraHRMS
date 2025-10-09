@@ -10,7 +10,7 @@ import EmployeeTable from "../EmployeeTable";
 import AttendanceTable from "../Attendance/AttendanceTable";
 import Reports from "../Reports";
 import CleanupButton from "../admin/CleanupButton";
-export default async function AdminDashboard() {
+export default async function AdminDashboard( { user }) {
   // 1. Fetch the initial data on the server
   const employees = await prisma.employee.findMany({
     include: {
@@ -42,8 +42,8 @@ export default async function AdminDashboard() {
     <div className="space-y-8">
       <h2 className="text-3xl font-bold text-gray-800">Admin Dashboard</h2>
 
-      <Tabs defaultValue="employees" className="w-full">
-        <TabsList className="grid w-full grid-cols-4"> {/* Changed grid-cols-2 to 3 */}
+      <Tabs defaultValue="employees" className="w-full  ">
+        <TabsList className="grid w-full h-[10vh] grid-cols-4 grid-rows-2"> {/* Changed grid-cols-2 to 3 */}
           <TabsTrigger value="employees">Employee Management</TabsTrigger>
           <TabsTrigger value="screener">AI Resume Screener</TabsTrigger>
           <TabsTrigger value="approvals">Leave Approvals</TabsTrigger>
@@ -61,7 +61,7 @@ export default async function AdminDashboard() {
 
         <TabsContent value="employees" className="mt-4">
           {/* 2. Pass the server-fetched data as a prop to the Client Component */}
-          <EmployeeTable initialEmployees={employees} />
+          <EmployeeTable initialEmployees={employees} role={user.role} />
         </TabsContent>
 
         <TabsContent value="screener" className="mt-4">

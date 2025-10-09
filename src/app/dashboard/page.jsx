@@ -8,6 +8,7 @@ import HRDashboard from "@/components/Dashboards/HRDashboard";
 import EmployeeDashboard from "@/components/Dashboards/EmployeeDashboard";
 import ManagerDashboard from "@/components/Dashboards/ManagerDashboard";
 import ClockInOutButton from "@/components/Attendance/ClockInOutButton";
+import RecruitmentNavButton from "@/components/RecruitmentNavButton"; // 👈 new client component
 
 async function getUserSession() {
   const token = cookies().get("session-token")?.value;
@@ -30,7 +31,7 @@ export default async function DashboardPage() {
   const DashboardContent = () => {
     switch (user.role) {
       case "ADMIN":
-        return <AdminDashboard />;
+        return <AdminDashboard user={user} />;
       case "SENIOR_MANAGER":
         return <ManagerDashboard user={user} />;
       case "HR_RECRUITER":
@@ -59,12 +60,17 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        {/* Show ClockInOutButton only for employees */}
-        {user.role !== "ADMIN" && (
-          <div className="md:ml-6">
+        <div className="flex items-center space-x-3">
+          {/* Show ClockInOutButton only for employees */}
+          {user.role !== "ADMIN" && (
             <ClockInOutButton userId={user.id} />
-          </div>
-        )}
+          )}
+
+          {/* Show recruitment button for HR or Admin */}
+          {(user.role === "HR_RECRUITER" || user.role === "ADMIN") && (
+            <RecruitmentNavButton />
+          )}
+        </div>
       </header>
 
       {/* Main dashboard content */}

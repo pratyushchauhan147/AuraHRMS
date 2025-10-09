@@ -1,8 +1,9 @@
 import prisma from "@/lib/prisma";
 import LeaveApprovalDashboard from "../LeaveApprovalDashboard";
 import ReviewGenerator from "../GenerateReview"; 
-import EmployeeTable from "../EmployeeTable"; // <-- Import our new Client Component
-// Assuming you have a Tabs component available in your project, e.g., from shadcn/ui
+import EmployeeTable from "../EmployeeTable";
+//import GoalFormModal from "../Performance/GoalFormModal";
+import GoalsDashboard from "../Performance/GoalDashboard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; 
 
 
@@ -63,10 +64,12 @@ export default async function ManagerDashboard({ user }) {
       {/* Adopt the Tabs structure for organizing manager tasks */}
       <Tabs defaultValue="approvals" className="w-full">
         {/* Tabs List for Navigation */}
-        <TabsList className="grid w-full grid-cols-3"> 
+        <TabsList className="grid w-full grid-cols-3">  
+          <TabsTrigger value="team">Team</TabsTrigger>
+          <TabsTrigger value="goals">Team Goals</TabsTrigger>
           <TabsTrigger value="approvals">Leave Approvals</TabsTrigger>
           <TabsTrigger value="reviews">Performance Reviews</TabsTrigger>
-          <TabsTrigger value="team">Team</TabsTrigger>
+         
         </TabsList>
 
         {/* Content for Leave Approvals Tab */}
@@ -74,6 +77,12 @@ export default async function ManagerDashboard({ user }) {
             {/* The LeaveApprovalDashboard will use the data fetched specific to this manager */}
             <LeaveApprovalDashboard initialRequests={pendingRequests} />
         </TabsContent>
+        
+        <TabsContent value="goals" className="mt-4">
+            <GoalsDashboard userRole={user.role} />
+
+        </TabsContent>
+
 
         <TabsContent value="team" className="mt-4">
          <EmployeeTable initialEmployees={employees} managerIdFilter={managerProfile.id} />

@@ -9,7 +9,7 @@ import EmployeeDashboard from "@/components/Dashboards/EmployeeDashboard";
 import ManagerDashboard from "@/components/Dashboards/ManagerDashboard";
 import ClockInOutButton from "@/components/Attendance/ClockInOutButton";
 import RecruitmentNavButton from "@/components/RecruitmentNavButton"; // 👈 new client component
-
+import PayrollNavButton from "@/components/PayrollNavButton"; // 👈 new client component
 async function getUserSession() {
   const token = cookies().get("session-token")?.value;
   if (!token) return null;
@@ -70,6 +70,7 @@ export default async function DashboardPage() {
           {(user.role === "HR_RECRUITER" || user.role === "ADMIN") && (
             <RecruitmentNavButton />
           )}
+          <PayrollNavButton user={user} />
         </div>
       </header>
 

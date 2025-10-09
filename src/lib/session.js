@@ -1,9 +1,10 @@
-// in src/lib/session.js
+// src/lib/session.js
 import { cookies } from "next/headers";
 import * as jose from "jose";
 
 export async function getUserSession() {
-  const token = cookies().get("session-token")?.value;
+  const cookieStore = await cookies(); // ✅ await cookies()
+  const token = cookieStore.get("session-token")?.value;
 
   if (!token) {
     console.log("No session token found in cookies.");

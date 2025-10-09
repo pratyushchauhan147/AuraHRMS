@@ -52,6 +52,8 @@ model Employee {
   goals                   Goal[]
   leaveRequests           LeaveRequest[]
   performanceReviews      PerformanceReview[]
+
+  payslips Payslip[]
 }
 
 model EmployeeReport {
@@ -128,13 +130,15 @@ model PerformanceReview {
 }
 
 model Goal {
-  id         String   @id @default(cuid())
-  objective  String
-  keyResults String
-  status     String   @default("On Track")
-  quarter    String
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id])
+  id          String   @id @default(cuid())
+  objective   String
+  keyResults  Json
+  quarter     String
+  status      String   @default("Pending")
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Attendance {
@@ -183,4 +187,48 @@ enum ReportStatus {
   IN_REVIEW
   RESOLVED
   CLOSED
+}
+model Payroll {
+  id             String        @id @default(cuid())
+  month          Int
+  year           Int
+  generatedAt    DateTime      @default(now())
+  status         PayrollStatus @default(PENDING)
+  totalEmployees Int
+  totalPayout    Float?
+  payslips       Payslip[]
+
+  @@unique([month, year])
+}
+
+model Payslip {
+  id             String    @id @default(cuid())
+  employeeId     String
+  payrollId      String
+  baseSalary     Float
+  overtimePay    Float     @default(0)
+  deductions     Float     @default(0)
+  bonuses        Float     @default(0)
+  taxes          Float     @default(0)
+  netPay         Float
+  remarks        String?   // optional note
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  status         PayslipStatus @default(GENERATED)
+
+ employee Employee @relation(fields: [employeeId], references: [id])
+  payroll  Payroll  @relation(fields: [payrollId], references: [id])
+}
+
+enum PayrollStatus {
+  PENDING
+  GENERATED
+  APPROVED
+  PAID
+}
+
+enum PayslipStatus {
+  GENERATED
+  APPROVED
+  PAID
 }

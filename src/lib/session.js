@@ -1,4 +1,5 @@
 // src/lib/session.js
+"use server"
 import { cookies } from "next/headers";
 import * as jose from "jose";
 

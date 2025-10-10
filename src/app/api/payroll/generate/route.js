@@ -86,16 +86,29 @@ export async function POST(req) {
       });
 
       const totalDays = attendance.length;
-      const overtimeHours = attendance.reduce(
-        (sum, a) => sum + (a.overtime ?? 0),
-        0
-      );
-      const overtimePay = overtimeHours * DEFAULT_OVERTIME_RATE;
-      const deductions = Math.max(0, (30 - totalDays) * (salary / 30));
-      const taxes = salary * 0.1;
-      const bonuses = 0;
-      const netPay = salary + overtimePay - deductions - taxes + bonuses;
+const overtimeHours = attendance.reduce(
+  (sum, a) => sum + (a.overtime ?? 0),
+  0
+);
+const overtimePay = overtimeHours * DEFAULT_OVERTIME_RATE;
 
+const workingDays = 30; // You can make this dynamic later if needed
+
+// ✅ Deduct only if attendance exists; assume no deduction if data missing
+const deductions =
+  totalDays > 0
+    ? Math.max(0, (workingDays - totalDays) * (salary / workingDays))
+    : 0;
+
+// ✅ Flat 10% tax
+const taxes = salary * 0.1;
+const bonuses = 0;
+
+// ✅ Prevent negative salaries
+const netPay = Math.max(
+  0,
+  salary + overtimePay - deductions - taxes + bonuses
+);
       await prisma.payslip.create({
         data: {
           employeeId: emp.id,

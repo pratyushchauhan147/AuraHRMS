@@ -19,6 +19,7 @@ export default function AdminPayrollDashboard() {
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState("HOUR"); // "HOUR" or "DAY"
 
   if (!payrolls) return <p>Loading payrolls...</p>;
   if (payrolls.error) return <p className="text-red-500">{payrolls.error}</p>;
@@ -27,7 +28,8 @@ export default function AdminPayrollDashboard() {
     setLoading(true);
     const month = new Date().getMonth() + 1;
     const year = new Date().getFullYear();
-    const res = await fetch("/api/payroll/preview", {
+    let url = mode === "DAY" ? "/api/payroll/preview/daywise" : "/api/payroll/preview";
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ month, year }),
@@ -40,10 +42,11 @@ export default function AdminPayrollDashboard() {
 
   const handleGenerate = async () => {
     if (!preview) return;
-    await fetch("/api/payroll/generate", {
+    let url = mode === "DAY" ? "/api/payroll/generate/daywise" : "/api/payroll/generate";
+    await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify( {month: preview.month, year: preview.year}),
+      body: JSON.stringify({ month: preview.month, year: preview.year }),
     });
     setOpen(false);
     mutate();
@@ -53,7 +56,18 @@ export default function AdminPayrollDashboard() {
     <div>
       <h1 className="text-2xl font-bold mb-4">Payroll Dashboard</h1>
 
-      <div className="mb-4">
+      <div className="mb-4 flex items-center gap-4">
+        <div>
+          <label className="mr-2 font-semibold">Select Mode:</label>
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value)}
+            className="border p-1 rounded"
+          >
+            <option value="HOUR">Hour-based</option>
+            <option value="DAY">Day-based</option>
+          </select>
+        </div>
         <Button onClick={handlePreview} disabled={loading}>
           {loading ? "Preparing preview..." : "Generate Payroll for Current Month"}
         </Button>
@@ -72,9 +86,7 @@ export default function AdminPayrollDashboard() {
         <tbody>
           {payrolls.map((p) => (
             <tr key={p.id}>
-              <td className="border px-4 py-2">
-                {p.month}/{p.year}
-              </td>
+              <td className="border px-4 py-2">{p.month}/{p.year}</td>
               <td className="border px-4 py-2">{p?._count?.payslips ?? 0}</td>
               <td className="border px-4 py-2">₹{p.totalPayout ?? 0}</td>
               <td className="border px-4 py-2">{p.status}</td>
@@ -102,6 +114,9 @@ export default function AdminPayrollDashboard() {
             <div className="space-y-3 text-sm">
               <p>
                 <strong>Month/Year:</strong> {preview.month}/{preview.year}
+              </p>
+              <p>
+                <strong>Mode:</strong> {mode === "DAY" ? "Day-based" : "Hour-based"}
               </p>
               <p>
                 <strong>Employees Included:</strong> {preview.totalEmployees}

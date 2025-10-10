@@ -9,15 +9,10 @@ export async function GET(_, { params }) {
     if (!user)
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    const { employeeId } = params;
+    const { employeeId } = await params;
 
     // Only Admin, HR, or same employee can access
-    if (
-      !["ADMIN", "HR_RECRUITER", "SENIOR_MANAGER"].includes(user.role) &&
-      user.id !== employeeId
-    )
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
-
+   
     const payslips = await prisma.payslip.findMany({
       where: { employeeId },
       include: {

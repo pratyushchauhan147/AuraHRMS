@@ -3,16 +3,33 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function EmployeePayslips({ user }) {
-  const { data: payslips } = useSWR(`/api/payslip/${user.employeeId}`, fetcher);
+  const employeeId = user?.employeeId || user?.id; // fallback if employeeId missing
+  const { data, error } = useSWR(
+    employeeId ? `/api/payslip/${employeeId}` : null,
+    fetcher
+  );
   const [selected, setSelected] = useState(null);
 
-  if (!payslips) return <p>Loading payslips...</p>;
-  if (payslips.error) return <p className="text-red-500">{payslips.error}</p>;
+  if (error) return <p className="text-red-500">Failed to load payslips.</p>;
+  if (!data) return <p>Loading payslips...</p>;
+  if (data.error)
+    return <p className="text-red-500 font-semibold">{data.error}</p>;
+
+  const payslips = Array.isArray(data) ? data : data.payslips || [];
+
+  if (payslips.length === 0)
+    return <p className="text-gray-500">No payslips available yet.</p>;
 
   return (
     <div>
@@ -30,9 +47,11 @@ export default function EmployeePayslips({ user }) {
         <tbody>
           {payslips.map((p) => (
             <tr key={p.id}>
-              <td className="border px-4 py-2">{p.payroll.month}/{p.payroll.year}</td>
+              <td className="border px-4 py-2">
+                {p.payroll?.month}/{p.payroll?.year}
+              </td>
               <td className="border px-4 py-2">₹{p.netPay}</td>
-              <td className="border px-4 py-2">{p.status}</td>
+              <td className="border px-4 py-2 capitalize">{p.status}</td>
               <td className="border px-4 py-2">
                 <Button onClick={() => setSelected(p)}>View</Button>
               </td>
@@ -45,16 +64,32 @@ export default function EmployeePayslips({ user }) {
         <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Payslip Details ({selected.payroll.month}/{selected.payroll.year})</DialogTitle>
+              <DialogTitle>
+                Payslip Details ({selected.payroll?.month}/{selected.payroll?.year})
+              </DialogTitle>
             </DialogHeader>
+
             <div className="mt-4 space-y-2">
-              <p><strong>Base Salary:</strong> ₹{selected.baseSalary}</p>
-              <p><strong>Overtime:</strong> ₹{selected.overtimePay}</p>
-              <p><strong>Deductions:</strong> ₹{selected.deductions}</p>
-              <p><strong>Taxes:</strong> ₹{selected.taxes}</p>
-              <p><strong>Bonuses:</strong> ₹{selected.bonuses}</p>
-              <p className="font-bold"><strong>Net Pay:</strong> ₹{selected.netPay}</p>
+              <p>
+                <strong>Base Salary:</strong> ₹{selected.baseSalary}
+              </p>
+              <p>
+                <strong>Overtime:</strong> ₹{selected.overtimePay}
+              </p>
+              <p>
+                <strong>Deductions:</strong> ₹{selected.deductions}
+              </p>
+              <p>
+                <strong>Taxes:</strong> ₹{selected.taxes}
+              </p>
+              <p>
+                <strong>Bonuses:</strong> ₹{selected.bonuses}
+              </p>
+              <p className="font-bold">
+                <strong>Net Pay:</strong> ₹{selected.netPay}
+              </p>
             </div>
+
             <DialogFooter>
               <Button onClick={() => setSelected(null)}>Close</Button>
             </DialogFooter>

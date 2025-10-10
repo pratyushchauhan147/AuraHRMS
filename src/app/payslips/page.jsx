@@ -1,13 +1,14 @@
-"use client";
+
 
 import { useState } from "react";
 import useSWR from "swr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-
+import { getUserSession } from "@/lib/session";
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function EmployeePayslips({ user }) {
+export default async function EmployeePayslips() {
+    const user = await getUserSession();
   const { data: payslips, mutate } = useSWR(`/api/payslip/${user.employeeId}`, fetcher);
   const [selectedPayslip, setSelectedPayslip] = useState(null);
 
